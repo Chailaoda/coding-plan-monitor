@@ -1,0 +1,18 @@
+[Unit]
+Description=Coding Plan Monitor
+After=graphical-session.target
+PartOf=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/env python3.11 /path/to/coding-plan-monitor/main.py
+Restart=on-failure
+RestartSec=10s
+Environment=DISPLAY=:0
+# 如无法连接桌面，可按实际环境取消注释并修改：
+# Environment=XDG_RUNTIME_DIR=/run/user/1000
+# Environment=XAUTHORITY=%h/.Xauthority
+MemoryMax=256M
+
+[Install]
+WantedBy=graphical-session.target

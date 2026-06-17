@@ -1,0 +1,14 @@
+config.json
+usage.db
+usage.db-shm
+usage.db-wal
+*.db
+*.db-shm
+*.db-wal
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+*.log
+.DS_Store

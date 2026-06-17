@@ -1,0 +1,32 @@
+{
+  "auth": {
+    "mode": "auto",
+    "cookie": "",
+    "csrf_token": "",
+    "mimo_cookie": ""
+  },
+  "polling": {
+    "interval_seconds": 60,
+    "timeout_seconds": 10,
+    "max_retries": 3
+  },
+  "ui": {
+    "position": { "x": 1500, "y": 80 },
+    "collapsed": false,
+    "always_on_top": true,
+    "alpha": 0.92,
+    "theme": "dark"
+  },
+  "alerts": {
+    "session": { "warn": 70, "critical": 90, "emergency": 98 },
+    "weekly":  { "warn": 80, "critical": 95 },
+    "monthly": { "warn": 80, "critical": 95 },
+    "mimo":    { "warn": 60, "critical": 90 },
+    "sound_enabled": true,
+    "notify_enabled": true
+  },
+  "storage": {
+    "history_enabled": true,
+    "history_keep_days": 90
+  }
+}
