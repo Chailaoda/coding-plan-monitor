@@ -20,6 +20,7 @@ from api import load_config, fetch_and_parse, fetch_mimo_usage, resolve_mimo_cre
 from storage import Storage
 from notifier import AlertManager
 from ui import FloatingWindow
+from tray import TrayManager
 
 
 CONFIG_PATH = os.path.join(THIS_DIR, "config.json")
@@ -66,6 +67,15 @@ class App:
         self._mimo_last_alert_pct = -1
         self._fetch_thread = threading.Thread(target=self._fetch_loop, daemon=True)
 
+        # 系统托盘
+        self.tray = TrayManager(
+            on_toggle_window=lambda: self._safe_call(self.win.toggle_visible),
+            on_show_window=lambda: self._safe_call(self.win.show),
+            on_quit=self._on_tray_quit,
+            on_refresh=self._trigger_refresh,
+        )
+        self._refresh_evt = threading.Event()
+
     # ------------------------- 后台拉取线程 -------------------------
     def _fetch_loop(self):
         # 启动后立即拉一次
@@ -73,8 +83,12 @@ class App:
         while not self._stop_evt.is_set():
             if not first:
                 interval = self.config.get("polling", {}).get("interval_seconds", 60)
-                if self._stop_evt.wait(interval):
+                # 等待时支持被刷新事件唤醒
+                woken = self._refresh_evt.wait(interval)
+                if self._stop_evt.is_set():
                     break
+                if woken:
+                    self._refresh_evt.clear()
             first = False
 
             try:
@@ -84,20 +98,36 @@ class App:
                 msg = f"认证失败: {e}"
                 print(f"[fetch] {msg}")
                 self._safe_call(self.win.update_error, msg)
+                try:
+                    self.tray.update_error("volcano", str(e))
+                except Exception:
+                    pass
                 if self._consec_fail >= 3:
                     self.alert_mgr.notify_auth_failure()
+                # 即使火山失败，也继续拉 MiMo
+                self._fetch_mimo()
                 continue
             except APIError as e:
                 self._consec_fail += 1
                 msg = f"接口错误: {e}"
                 print(f"[fetch] {msg}")
                 self._safe_call(self.win.update_error, msg)
+                try:
+                    self.tray.update_error("volcano", str(e))
+                except Exception:
+                    pass
+                self._fetch_mimo()
                 continue
             except Exception as e:
                 self._consec_fail += 1
                 print(f"[fetch] 未知错误: {e}")
                 traceback.print_exc()
                 self._safe_call(self.win.update_error, f"错误: {e}")
+                try:
+                    self.tray.update_error("volcano", str(e))
+                except Exception:
+                    pass
+                self._fetch_mimo()
                 continue
 
             self._consec_fail = 0
@@ -114,6 +144,11 @@ class App:
                 traceback.print_exc()
             # 推到 UI（必须在主线程更新）
             self._safe_call(self.win.update_data, data)
+            # 推到托盘
+            try:
+                self.tray.update_volcano(data)
+            except Exception as e:
+                print(f"[tray] update_volcano 失败: {e}")
 
             # --- MiMo 拉取 ---
             self._fetch_mimo()
@@ -127,12 +162,16 @@ class App:
                 pass
 
     def _fetch_mimo(self):
-        """拉取 MiMo 用量并推送到 UI"""
+        """拉取 MiMo 用量并推送到 UI 与托盘"""
         try:
             if not self._mimo_cookie:
                 self._mimo_cookie = resolve_mimo_credentials(self.config)
             data = fetch_mimo_usage(self._mimo_cookie)
             self._safe_call(self.win.update_mimo, data)
+            try:
+                self.tray.update_mimo(data)
+            except Exception as e:
+                print(f"[tray] update_mimo 失败: {e}")
             # MiMo 阈值检查：每跨越 5% 提醒一次
             try:
                 pct = data["percent"]
@@ -153,11 +192,46 @@ class App:
         except AuthError as e:
             print(f"[mimo] 认证失败: {e}")
             self._mimo_cookie = None
+            try:
+                self.tray.update_error("mimo", str(e))
+            except Exception:
+                pass
         except APIError as e:
             print(f"[mimo] 接口错误: {e}")
+            try:
+                self.tray.update_error("mimo", str(e))
+            except Exception:
+                pass
         except Exception as e:
             print(f"[mimo] 未知错误: {e}")
             traceback.print_exc()
+            try:
+                self.tray.update_error("mimo", str(e))
+            except Exception:
+                pass
+
+    def _trigger_refresh(self):
+        """托盘"刷新"菜单：唤醒后台线程立即拉取一次"""
+        try:
+            self._refresh_evt.set()
+        except Exception:
+            pass
+
+    def _on_tray_quit(self):
+        """托盘"退出"菜单：彻底退出程序"""
+        # 先停托盘自身
+        try:
+            self.tray.stop()
+        except Exception:
+            pass
+        # 然后让 Tk 主线程销毁窗口
+        try:
+            self.win.root.after(0, self.win.quit_app)
+        except Exception:
+            try:
+                self.win.quit_app()
+            except Exception:
+                pass
 
     def _safe_call(self, fn, *args):
         """从子线程把回调投递到 Tk 主线程"""
@@ -186,6 +260,7 @@ class App:
 
     # ------------------------- 主入口 -------------------------
     def run(self):
+        self.tray.start()
         self._fetch_thread.start()
         try:
             self.win.run()
@@ -193,6 +268,10 @@ class App:
             pass
         finally:
             self._stop_evt.set()
+            try:
+                self.tray.stop()
+            except Exception:
+                pass
 
 
 def main():
