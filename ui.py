@@ -197,6 +197,7 @@ class FloatingWindow:
 
         self.collapsed = initial_collapsed
         self.last_data: Optional[dict] = None
+        self._visible = True
         self.last_fetch_time: Optional[datetime] = None
 
         self.root = tk.Tk()
@@ -370,6 +371,35 @@ class FloatingWindow:
         self._refresh_compact_label()
 
     def close(self):
+        """✕ 按钮：仅隐藏窗口（托盘图标继续保留）"""
+        self.hide()
+
+    def hide(self):
+        try:
+            self.root.withdraw()
+            self._visible = False
+        except Exception:
+            pass
+
+    def show(self):
+        try:
+            self.root.deiconify()
+            try:
+                self.root.lift()
+            except Exception:
+                pass
+            self._visible = True
+        except Exception:
+            pass
+
+    def toggle_visible(self):
+        if getattr(self, "_visible", True):
+            self.hide()
+        else:
+            self.show()
+
+    def quit_app(self):
+        """彻底退出（由托盘"退出"菜单调用）"""
         if self.on_close_cb:
             try:
                 self.on_close_cb()
