@@ -18,6 +18,11 @@
 - 自动读取 360 浏览器（UOS 版 / Chromium 系）Cookie
 - SQLite 本地历史记录与提醒去重
 - 支持 systemd user service 开机自启
+- **系统托盘双图标（火山 + MiMo）**：
+  - 22×22 进度环图标，按用量百分比变色（绿/黄/红）
+  - 鼠标悬停显示百分比 tooltip（ASCII，因 X11 协议限制）
+  - 左键点击：切换悬浮窗显示/隐藏
+  - 悬浮窗 ✕ 按钮改为隐藏，仍可通过托盘左键唤出
 
 ## 截图
 
@@ -137,6 +142,7 @@ coding-plan-monitor/
 ├── main.py                        # 程序入口与后台轮询线程
 ├── notifier.py                    # 桌面通知与声音提醒
 ├── storage.py                     # SQLite 历史记录与提醒去重
+├── tray.py                        # 系统托盘双图标（pystray + Pillow）
 ├── test_api.py                    # API 连通性测试
 ├── ui.py                          # Tkinter 悬浮窗 UI
 ├── config.example.json            # 配置模板
@@ -173,6 +179,10 @@ coding-plan-monitor/
 - Chromium Cookie 加密方案在不同浏览器/系统版本上可能不同
 - 平台内部接口如果改版，可能需要更新 `api.py`
 - Tkinter 悬浮窗在 Wayland 环境下表现可能与 X11 不一致
+- 系统托盘使用 pystray 的 XEmbed 后端：
+  - tooltip 受 X11 `WM_NAME` 协议限制只能显示 latin-1 字符，中文会被替换为 `?`
+  - 不支持右键菜单（pystray XEmbed 后端限制），改为左键单击切换窗口
+  - 退出程序请通过悬浮窗逻辑或 `systemctl --user stop`
 
 ## License
 
