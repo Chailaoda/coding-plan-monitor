@@ -1,0 +1,20 @@
+[Unit]
+Description=Coding Plan Monitor (Volcengine Ark)
+After=graphical-session.target
+PartOf=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3.11 %h/Desktop/工作区/coding-plan-monitor/main.py
+Restart=on-failure
+RestartSec=10s
+# 让 Tkinter 能找到 X11 显示
+Environment=DISPLAY=:0
+# 如果 systemd user 没继承 XDG_RUNTIME_DIR，下面这行通常也需要
+# Environment=XDG_RUNTIME_DIR=/run/user/1000
+
+# 限制资源（可选）
+MemoryMax=256M
+
+[Install]
+WantedBy=graphical-session.target

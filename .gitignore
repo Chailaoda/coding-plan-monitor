@@ -1,0 +1,6 @@
+config.json
+usage.db
+usage.db-shm
+usage.db-wal
+__pycache__/
+*.pyc
